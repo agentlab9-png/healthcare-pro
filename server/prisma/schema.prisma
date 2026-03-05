@@ -1,0 +1,94 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      String   // 'patient', 'doctor', 'admin'
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  patient   Patient?
+  doctor    Doctor?
+}
+
+model Patient {
+  id                String   @id @default(uuid())
+  user              User     @relation(fields: [userId], references: [id])
+  userId            String   @unique
+  mrn               String?  @unique
+  age               Int?
+  bloodType         String?
+  chronicConditions String?  // Stored as JSON string
+  allergies         String?  // Stored as JSON string
+  
+  appointments      Appointment[]
+  records           MedicalRecord[]
+}
+
+model Doctor {
+  id              String   @id @default(uuid())
+  user            User     @relation(fields: [userId], references: [id])
+  userId          String   @unique
+  specialty       String
+  experience      String?
+  rating          Float?   @default(0)
+  reviewsCount    Int?     @default(0)
+  consultationFee Float?
+  status          String   @default("active") // 'active', 'inactive'
+
+  appointments    Appointment[]
+  records         MedicalRecord[]
+}
+
+model Appointment {
+  id         String   @id @default(uuid())
+  patient    Patient  @relation(fields: [patientId], references: [id])
+  patientId  String
+  doctor     Doctor   @relation(fields: [doctorId], references: [id])
+  doctorId   String
+  date       String
+  time       String
+  type       String   // 'حضوري', 'استشارة فيديو', 'صوتي'
+  status     String   @default("في الانتظار") // 'في الانتظار', 'مؤكد', 'مكتمل', 'ملغي'
+  reason     String?
+  notes      String?
+  createdAt  DateTime @default(now())
+}
+
+model Medication {
+  id                  String   @id @default(uuid())
+  name                String
+  dosage              String
+  instructions        String
+  stock               Int      @default(0)
+  price               Float?
+  requiresPrescription Boolean  @default(false)
+  createdAt           DateTime @default(now())
+}
+
+model MedicalRecord {
+  id         String   @id @default(uuid())
+  patient    Patient  @relation(fields: [patientId], references: [id])
+  patientId  String
+  doctor     Doctor   @relation(fields: [doctorId], references: [id])
+  doctorId   String
+  date       String
+  title      String
+  type       String   // 'report', 'lab'
+  content    String
+  status     String?
+  color      String?
+  createdAt  DateTime @default(now())
+}

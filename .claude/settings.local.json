@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx eslint src --max-warnings=0)"
+    ]
+  }
+}
