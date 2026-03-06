@@ -1,11 +1,15 @@
-import { Users, Calendar, TrendingUp, Star, MoreVertical } from 'lucide-react';
+import { Users, Calendar, TrendingUp, Star } from 'lucide-react';
 import { Card } from '../../components/ui/Card';
 import { useDataStore } from '../../store/dataStore';
 import { useAuthStore } from '../../store';
+import { useNotificationStore } from '../../store/notificationStore';
+import { useNavigate } from 'react-router-dom';
 
 export default function DoctorDashboard() {
     const { user } = useAuthStore();
     const { appointments } = useDataStore();
+    const { notify } = useNotificationStore();
+    const navigate = useNavigate();
 
     // Filter appointments for the current doctor
     const myAppointments = appointments.filter(a => a.doctorId === user?.id && a.status !== 'ملغي');
@@ -27,7 +31,10 @@ export default function DoctorDashboard() {
                     <p className="text-[#7A9490] mt-1">مرحباً {user?.name}، إليك ملخص اليوم</p>
                 </div>
                 <div className="flex gap-2">
-                    <button className="px-4 py-2 bg-white border border-[#C8DDD9] text-[#4A6360] font-bold text-sm rounded-xl shadow-sm hover:bg-[#F8FAF9] transition-colors">
+                    <button
+                        onClick={() => notify('ميزة إعدادات الدوام ستكون متاحة قريباً', 'info')}
+                        className="px-4 py-2 bg-white border border-[#C8DDD9] text-[#4A6360] font-bold text-sm rounded-xl shadow-sm hover:bg-[#F8FAF9] transition-colors"
+                    >
                         إعدادات الدوام
                     </button>
                 </div>
@@ -62,11 +69,20 @@ export default function DoctorDashboard() {
                 <Card className="lg:col-span-2 p-6">
                     <div className="flex justify-between items-center mb-6">
                         <h3 className="font-bold text-[#1C2B2A] text-lg">المواعيد القادمة اليوم</h3>
-                        <button className="text-sm font-bold text-[#3A7DBF] hover:underline">عرض الكل</button>
+                        <button
+                            onClick={() => navigate('/doctor/appointments')}
+                            className="text-sm font-bold text-[#3A7DBF] hover:underline"
+                        >
+                            عرض الكل
+                        </button>
                     </div>
                     <div className="space-y-4">
                         {todayApps.length > 0 ? todayApps.map((app) => (
-                            <div key={app.id} className="flex items-center justify-between p-4 bg-[#F8FAF9] rounded-2xl border border-[#C8DDD9]">
+                            <div
+                                key={app.id}
+                                className="flex items-center justify-between p-4 bg-[#F8FAF9] rounded-2xl border border-[#C8DDD9] cursor-pointer hover:bg-[#EFF6F4] transition-colors"
+                                onClick={() => navigate(`/doctor/patients/${app.patientId}`)}
+                            >
                                 <div className="flex items-center gap-4">
                                     <div className="text-center w-16 px-3 py-1 bg-white border border-[#C8DDD9] rounded-lg">
                                         <span className="text-[10px] text-[#7A9490] block">الوقت</span>
@@ -81,7 +97,6 @@ export default function DoctorDashboard() {
                                     <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${app.status === 'في الانتظار' ? 'bg-[#FEF6E8] text-[#D4820A]' : 'bg-[#EFF6F4] text-[#2E7D6B]'}`}>
                                         {app.status}
                                     </span>
-                                    <button className="text-[#C8DDD9] hover:text-[#3A7DBF]"><MoreVertical size={20} /></button>
                                 </div>
                             </div>
                         )) : (

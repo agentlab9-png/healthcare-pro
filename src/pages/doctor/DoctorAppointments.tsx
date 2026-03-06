@@ -91,7 +91,7 @@ export default function DoctorAppointments() {
 
                         <div className="flex items-center gap-2">
                             {app.type === 'استشارة فيديو' && (
-                                <Button size="sm" className="bg-[#E0EEFA] text-[#3A7DBF] hover:bg-[#C5E1F7] gap-2">
+                                <Button size="sm" className="bg-[#E0EEFA] text-[#3A7DBF] hover:bg-[#C5E1F7] gap-2" onClick={() => { notify('جاري بدء مكالمة الفيديو مع المريض...', 'info'); }}>
                                     <Video size={16} /> دخول للاجتماع
                                 </Button>
                             )}

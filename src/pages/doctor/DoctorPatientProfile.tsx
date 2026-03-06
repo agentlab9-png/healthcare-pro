@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { FileText, Plus, Save, Phone, Video, ArrowRight } from 'lucide-react';
-import { Card, Button } from '../../components/ui';
+import { Card, Button, Modal, Input } from '../../components/ui';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useDataStore, type MedicalRecord } from '../../store/dataStore';
 import { useAuthStore } from '../../store';
@@ -11,10 +11,12 @@ export default function DoctorPatientProfile() {
     const { id } = useParams();
     const navigate = useNavigate();
     const { user } = useAuthStore();
-    const { patients, records, addRecord } = useDataStore();
+    const { patients, records, addRecord, addMedication } = useDataStore();
     const { notify } = useNotificationStore();
     const [noteText, setNoteText] = useState('');
     const [saving, setSaving] = useState(false);
+    const [showAddMedModal, setShowAddMedModal] = useState(false);
+    const [medForm, setMedForm] = useState({ name: '', dosage: '', instructions: '' });
 
     const patient = patients.find(p => p.id === id);
 
@@ -63,6 +65,37 @@ export default function DoctorPatientProfile() {
         setSaving(false);
     };
 
+    const handleAddMedication = () => {
+        if (!medForm.name.trim()) {
+            notify('يرجى إدخال اسم الدواء', 'error');
+            return;
+        }
+        const newMed: Medication = {
+            id: `MED-${Date.now()}`,
+            name: medForm.name.trim(),
+            dosage: medForm.dosage.trim(),
+            instructions: medForm.instructions.trim(),
+        };
+        addMedication(newMed);
+
+        // Also add a record for this prescription
+        const record: MedicalRecord = {
+            id: `REC-${Date.now()}`,
+            patientId: id || '',
+            doctorId: user?.id || '',
+            doctorName: user?.name || '',
+            date: new Date().toISOString().split('T')[0],
+            title: `وصف دواء: ${newMed.name}`,
+            type: 'report',
+            content: `تم وصف ${newMed.name} ${newMed.dosage ? `بجرعة ${newMed.dosage}` : ''} ${newMed.instructions ? `- ${newMed.instructions}` : ''}`,
+        };
+        addRecord(record);
+
+        notify(`تم وصف ${newMed.name} بنجاح`, 'success');
+        setMedForm({ name: '', dosage: '', instructions: '' });
+        setShowAddMedModal(false);
+    };
+
     return (
         <div className="space-y-6 pb-20">
             {/* Back Button */}
@@ -87,10 +120,16 @@ export default function DoctorPatientProfile() {
                             </div>
                         </div>
                         <div className="flex gap-2">
-                            <button className="w-10 h-10 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors">
+                            <button
+                                onClick={() => notify('جاري الاتصال بالمريض...', 'info')}
+                                className="w-10 h-10 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+                            >
                                 <Phone size={20} />
                             </button>
-                            <button className="w-10 h-10 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors">
+                            <button
+                                onClick={() => notify('جاري بدء مكالمة الفيديو...', 'info')}
+                                className="w-10 h-10 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+                            >
                                 <Video size={20} />
                             </button>
                         </div>
@@ -196,12 +235,47 @@ export default function DoctorPatientProfile() {
                                 <p className="text-xs text-[#7A9490] text-center py-2">لا توجد أدوية مسجلة</p>
                             )}
                         </div>
-                        <Button variant="outline" className="w-full mt-4 gap-2 border-[#2E7D6B] text-[#2E7D6B]">
+                        <Button
+                            variant="outline"
+                            className="w-full mt-4 gap-2 border-[#2E7D6B] text-[#2E7D6B]"
+                            onClick={() => setShowAddMedModal(true)}
+                        >
                             <Plus size={16} /> إضافة دواء
                         </Button>
                     </Card>
                 </div>
             </div>
+
+            {/* Add Medication Modal */}
+            <Modal isOpen={showAddMedModal} onClose={() => { setShowAddMedModal(false); setMedForm({ name: '', dosage: '', instructions: '' }); }} title="وصف دواء للمريض">
+                <div className="space-y-4">
+                    <div className="bg-[#F8FAF9] p-3 rounded-xl border border-[#C8DDD9]">
+                        <p className="text-sm font-bold text-[#1C2B2A]">المريض: {patient.name}</p>
+                    </div>
+                    <Input
+                        label="اسم الدواء *"
+                        value={medForm.name}
+                        onChange={(e) => setMedForm(f => ({ ...f, name: e.target.value }))}
+                        placeholder="مثال: أموكسيسيلين"
+                    />
+                    <Input
+                        label="الجرعة"
+                        value={medForm.dosage}
+                        onChange={(e) => setMedForm(f => ({ ...f, dosage: e.target.value }))}
+                        placeholder="مثال: 500mg"
+                    />
+                    <Input
+                        label="تعليمات الاستخدام"
+                        value={medForm.instructions}
+                        onChange={(e) => setMedForm(f => ({ ...f, instructions: e.target.value }))}
+                        placeholder="مثال: حبة ثلاث مرات يومياً بعد الأكل"
+                    />
+                    <div className="flex gap-3 pt-2">
+                        <Button variant="outline" className="flex-1" onClick={() => { setShowAddMedModal(false); setMedForm({ name: '', dosage: '', instructions: '' }); }}>إلغاء</Button>
+                        <Button className="flex-1" onClick={handleAddMedication}>وصف الدواء</Button>
+                    </div>
+                </div>
+            </Modal>
         </div>
     );
 }

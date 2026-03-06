@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { Search, Filter, Calendar, MapPin, Star } from 'lucide-react';
-import { Card, Input, Button } from '../../components/ui';
+import { Card, Input, Button, Modal } from '../../components/ui';
 import { useDataStore } from '../../store/dataStore';
 import { useAuthStore } from '../../store/authStore';
 import { useNotificationStore } from '../../store/notificationStore';
 import { type Appointment, type Doctor } from '../../types';
+import { notifyAppointmentBooked } from '../../lib/telegram';
 
 export default function AppointmentsPage() {
     const [activeTab, setActiveTab] = useState<'upcoming' | 'book'>('upcoming');
@@ -36,12 +37,35 @@ export default function AppointmentsPage() {
     );
 }
 
+const TIME_SLOTS = ['08:00 ص', '09:00 ص', '10:00 ص', '11:00 ص', '12:00 م', '01:00 م', '02:00 م', '03:00 م'];
+
 function UpcomingAppointments() {
     const { user } = useAuthStore();
-    const { appointments, cancelAppointment } = useDataStore();
+    const { appointments, cancelAppointment, rescheduleAppointment } = useDataStore();
     const { notify } = useNotificationStore();
+    const [rescheduleApp, setRescheduleApp] = useState<Appointment | null>(null);
+    const [newDate, setNewDate] = useState('');
+    const [newTime, setNewTime] = useState('');
 
     const myAppointments = appointments.filter(a => a.patientId === user?.id && a.status !== 'ملغي');
+    const minDate = new Date().toISOString().split('T')[0];
+
+    const handleReschedule = () => {
+        if (!rescheduleApp) return;
+        if (!newDate) {
+            notify('يرجى اختيار تاريخ جديد', 'error');
+            return;
+        }
+        if (!newTime) {
+            notify('يرجى اختيار وقت جديد', 'error');
+            return;
+        }
+        rescheduleAppointment(rescheduleApp.id, newDate, newTime);
+        notify('تم إعادة جدولة الموعد بنجاح', 'success');
+        setRescheduleApp(null);
+        setNewDate('');
+        setNewTime('');
+    };
 
     return (
         <div className="space-y-4 mt-6">
@@ -97,7 +121,18 @@ function UpcomingAppointments() {
                             >
                                 إلغاء الموعد
                             </Button>
-                            <Button variant="secondary" size="sm" className="flex-1">إعادة جدولة</Button>
+                            <Button
+                                variant="secondary"
+                                size="sm"
+                                className="flex-1"
+                                onClick={() => {
+                                    setRescheduleApp(app);
+                                    setNewDate(app.date);
+                                    setNewTime('');
+                                }}
+                            >
+                                إعادة جدولة
+                            </Button>
                         </div>
                     </Card>
                 ))
@@ -109,13 +144,54 @@ function UpcomingAppointments() {
                     <p className="text-[#4A6360] font-medium text-sm">لا توجد مواعيد أخرى قادمة</p>
                 </div>
             )}
+
+            {/* Reschedule Modal */}
+            <Modal isOpen={!!rescheduleApp} onClose={() => { setRescheduleApp(null); setNewDate(''); setNewTime(''); }} title="إعادة جدولة الموعد">
+                <div className="space-y-4">
+                    {rescheduleApp && (
+                        <div className="bg-[#F8FAF9] p-3 rounded-xl border border-[#C8DDD9]">
+                            <p className="text-sm font-bold text-[#1C2B2A]">{rescheduleApp.doctorName}</p>
+                            <p className="text-xs text-[#7A9490] mt-1">الموعد الحالي: {rescheduleApp.date} - {rescheduleApp.time}</p>
+                        </div>
+                    )}
+                    <div>
+                        <label className="text-sm font-bold text-[#4A6360] block mb-2">اختر التاريخ الجديد</label>
+                        <input
+                            type="date"
+                            min={minDate}
+                            value={newDate}
+                            onChange={(e) => setNewDate(e.target.value)}
+                            className="w-full border border-[#C8DDD9] rounded-xl px-4 py-2.5 text-sm text-[#1C2B2A] focus:outline-none focus:border-[#2E7D6B]"
+                        />
+                    </div>
+                    <div>
+                        <label className="text-sm font-bold text-[#4A6360] block mb-2">اختر الوقت الجديد</label>
+                        <div className="grid grid-cols-4 gap-2">
+                            {TIME_SLOTS.map((slot) => (
+                                <button
+                                    key={slot}
+                                    onClick={() => setNewTime(slot)}
+                                    className={`py-2 text-xs font-bold rounded-xl border transition-colors ${newTime === slot
+                                        ? 'bg-[#2E7D6B] text-white border-[#2E7D6B]'
+                                        : 'bg-white text-[#4A6360] border-[#C8DDD9] hover:border-[#2E7D6B]'
+                                        }`}
+                                >
+                                    {slot}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                    <div className="flex gap-3 pt-2">
+                        <Button variant="outline" className="flex-1" onClick={() => { setRescheduleApp(null); setNewDate(''); setNewTime(''); }}>إلغاء</Button>
+                        <Button className="flex-1" onClick={handleReschedule}>تأكيد الموعد الجديد</Button>
+                    </div>
+                </div>
+            </Modal>
         </div>
     );
 }
 
 const SPECIALTIES = ['الكل', 'باطنية', 'أطفال', 'أسنان', 'عيون', 'عظام', 'جلدية'];
-
-const TIME_SLOTS = ['08:00 ص', '09:00 ص', '10:00 ص', '11:00 ص', '12:00 م', '01:00 م', '02:00 م', '03:00 م'];
 
 function BookAppointment({ onBooked }: { onBooked: () => void }) {
     const { doctors, addAppointment } = useDataStore();
@@ -127,10 +203,14 @@ function BookAppointment({ onBooked }: { onBooked: () => void }) {
     const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
     const [selectedDate, setSelectedDate] = useState('');
     const [selectedTime, setSelectedTime] = useState('');
+    const [selectedType, setSelectedType] = useState<'حضوري' | 'استشارة فيديو'>('حضوري');
 
     const minDate = new Date().toISOString().split('T')[0];
 
-    const filteredDoctors = doctors.filter((doc: Doctor) => {
+    // Only show active doctors
+    const activeDoctors = doctors.filter((doc: Doctor) => doc.status !== 'inactive');
+
+    const filteredDoctors = activeDoctors.filter((doc: Doctor) => {
         const matchesSearch = searchQuery.trim() === '' ||
             doc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
             doc.specialty.toLowerCase().includes(searchQuery.toLowerCase());
@@ -158,10 +238,17 @@ function BookAppointment({ onBooked }: { onBooked: () => void }) {
             patientName: user?.name,
             date: selectedDate,
             time: selectedTime,
-            type: 'حضوري',
+            type: selectedType,
             status: 'في الانتظار',
         };
         addAppointment(newApp);
+        notifyAppointmentBooked({
+            patientName: user?.name || '',
+            doctorName: selectedDoctor.name,
+            date: selectedDate,
+            time: selectedTime,
+            type: selectedType,
+        });
         notify('تم حجز الموعد بنجاح', 'success');
         onBooked();
     };
@@ -184,6 +271,24 @@ function BookAppointment({ onBooked }: { onBooked: () => void }) {
                         <div>
                             <h4 className="font-bold text-[#1C2B2A] text-lg">{selectedDoctor.name}</h4>
                             <p className="text-sm text-[#7A9490]">{selectedDoctor.specialty}</p>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="text-sm font-bold text-[#4A6360] block mb-2">نوع الموعد</label>
+                        <div className="flex gap-2">
+                            {(['حضوري', 'استشارة فيديو'] as const).map((type) => (
+                                <button
+                                    key={type}
+                                    onClick={() => setSelectedType(type)}
+                                    className={`flex-1 py-2 text-xs font-bold rounded-xl border transition-colors ${selectedType === type
+                                        ? 'bg-[#2E7D6B] text-white border-[#2E7D6B]'
+                                        : 'bg-white text-[#4A6360] border-[#C8DDD9] hover:border-[#2E7D6B]'
+                                        }`}
+                                >
+                                    {type}
+                                </button>
+                            ))}
                         </div>
                     </div>
 
@@ -262,13 +367,13 @@ function BookAppointment({ onBooked }: { onBooked: () => void }) {
                                 <div className="flex justify-between items-start">
                                     <h4 className="font-bold text-[#1C2B2A]">{doc.name}</h4>
                                     <div className="flex items-center gap-1 text-[#D4820A] bg-[#FEF6E8] px-1.5 py-0.5 rounded text-[10px] font-bold">
-                                        <Star size={10} fill="currentColor" /> {doc.rating}
+                                        <Star size={10} fill="currentColor" /> {doc.rating || 0}
                                     </div>
                                 </div>
                                 <p className="text-xs text-[#7A9490]">{doc.specialty}</p>
                                 <div className="mt-2 text-xs flex items-center gap-4 text-[#4A6360]">
-                                    <span className="flex items-center gap-1 bg-[#F8FAF9] px-2 py-1 rounded-md">💰 {doc.consultationFee || 200} ريال</span>
-                                    <span className="flex items-center gap-1 bg-[#F8FAF9] px-2 py-1 rounded-md">💬 {doc.reviewsCount} تقييم</span>
+                                    <span className="flex items-center gap-1 bg-[#F8FAF9] px-2 py-1 rounded-md">{doc.consultationFee || 200} ريال</span>
+                                    <span className="flex items-center gap-1 bg-[#F8FAF9] px-2 py-1 rounded-md">{doc.reviewsCount || 0} تقييم</span>
                                 </div>
                             </div>
                         </div>

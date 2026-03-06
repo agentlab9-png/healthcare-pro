@@ -53,6 +53,7 @@ interface DataState {
     addAppointment: (appointment: Appointment) => void;
     cancelAppointment: (id: string) => void;
     updateAppointmentStatus: (id: string, status: Appointment['status']) => void;
+    rescheduleAppointment: (id: string, newDate: string, newTime: string) => void;
 
     // Medication Actions
     addMedication: (medication: Medication) => void;
@@ -89,6 +90,8 @@ export const useDataStore = create<DataState>()(
             systemAlerts: [],
 
             addAppointment: async (app: Appointment) => {
+                // Update local state immediately
+                set((state) => ({ appointments: [...state.appointments, app] }));
                 try {
                     const response = await fetch(`${API_URL}/appointments`, {
                         method: 'POST',
@@ -97,33 +100,50 @@ export const useDataStore = create<DataState>()(
                     });
                     if (response.ok) {
                         const newApp = await response.json();
-                        set((state) => ({ appointments: [...state.appointments, newApp] }));
+                        set((state) => ({
+                            appointments: state.appointments.map(a => a.id === app.id ? newApp : a)
+                        }));
                     }
                 } catch (error) {
-                    console.error('Failed to add appointment:', error);
+                    console.error('Failed to sync appointment to server:', error);
                 }
             },
             cancelAppointment: async (id: string) => {
+                // Update local state immediately
+                set((state) => ({
+                    appointments: state.appointments.map(a => a.id === id ? { ...a, status: 'ملغي' } : a)
+                }));
                 try {
-                    const response = await fetch(`${API_URL}/appointments/${id}`, {
+                    await fetch(`${API_URL}/appointments/${id}`, {
                         method: 'PUT',
                         headers: getAuthHeaders(),
                         body: JSON.stringify({ status: 'ملغي' })
                     });
-                    if (response.ok) {
-                        set((state) => ({
-                            appointments: state.appointments.map(a => a.id === id ? { ...a, status: 'ملغي' } : a)
-                        }));
-                    }
                 } catch (error) {
-                    console.error('Failed to cancel appointment:', error);
+                    console.error('Failed to sync cancellation to server:', error);
                 }
             },
             updateAppointmentStatus: (id: string, status: Appointment['status']) => set((state) => ({
                 appointments: state.appointments.map(a => a.id === id ? { ...a, status } : a)
             })),
+            rescheduleAppointment: async (id: string, newDate: string, newTime: string) => {
+                set((state) => ({
+                    appointments: state.appointments.map(a => a.id === id ? { ...a, date: newDate, time: newTime, status: 'في الانتظار' } : a)
+                }));
+                try {
+                    await fetch(`${API_URL}/appointments/${id}`, {
+                        method: 'PUT',
+                        headers: getAuthHeaders(),
+                        body: JSON.stringify({ date: newDate, time: newTime, status: 'في الانتظار' })
+                    });
+                } catch (error) {
+                    console.error('Failed to sync reschedule to server:', error);
+                }
+            },
 
             addMedication: async (med: Medication) => {
+                // Update local state immediately
+                set((state) => ({ medications: [...state.medications, med] }));
                 try {
                     const response = await fetch(`${API_URL}/medications`, {
                         method: 'POST',
@@ -132,10 +152,12 @@ export const useDataStore = create<DataState>()(
                     });
                     if (response.ok) {
                         const newMed = await response.json();
-                        set((state) => ({ medications: [...state.medications, newMed] }));
+                        set((state) => ({
+                            medications: state.medications.map(m => m.id === med.id ? newMed : m)
+                        }));
                     }
                 } catch (error) {
-                    console.error('Failed to add medication:', error);
+                    console.error('Failed to sync medication to server:', error);
                 }
             },
             updateMedication: async (id: string, updates: Partial<Medication>) => {
@@ -154,22 +176,23 @@ export const useDataStore = create<DataState>()(
                 }
             },
             deleteMedication: async (mid) => {
+                // Update local state immediately
+                set((state) => ({
+                    medications: state.medications.filter(m => m.id !== mid)
+                }));
                 try {
-                    const response = await fetch(`${API_URL}/medications/${mid}`, {
+                    await fetch(`${API_URL}/medications/${mid}`, {
                         method: 'DELETE',
                         headers: getAuthHeaders()
                     });
-                    if (response.ok) {
-                        set((state) => ({
-                            medications: state.medications.filter(m => m.id !== mid)
-                        }));
-                    }
                 } catch (error) {
-                    console.error('Failed to delete medication:', error);
+                    console.error('Failed to sync medication deletion to server:', error);
                 }
             },
 
             addDoctor: async (doc: Doctor) => {
+                // Update local state immediately
+                set((state) => ({ doctors: [...state.doctors, doc] }));
                 try {
                     const response = await fetch(`${API_URL}/doctors`, {
                         method: 'POST',
@@ -178,10 +201,12 @@ export const useDataStore = create<DataState>()(
                     });
                     if (response.ok) {
                         const newDoc = await response.json();
-                        set((state) => ({ doctors: [...state.doctors, newDoc] }));
+                        set((state) => ({
+                            doctors: state.doctors.map(d => d.id === doc.id ? newDoc : d)
+                        }));
                     }
                 } catch (error) {
-                    console.error('Failed to add doctor:', error);
+                    console.error('Failed to sync doctor to server:', error);
                 }
             },
             updateDoctorStatus: async (did, status) => {

@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Plus, CheckCircle2, Circle, Clock } from 'lucide-react';
-import { Card } from '../../components/ui';
+import { Card, Modal, Input, Button } from '../../components/ui';
 import { useDataStore } from '../../store/dataStore';
 import { useAuthStore } from '../../store/authStore';
-import { type Patient } from '../../types';
+import { useNotificationStore } from '../../store/notificationStore';
+import { type Patient, type Medication } from '../../types';
 
 const DAY_NAMES = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
 const MONTHS_AR = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
@@ -23,9 +24,12 @@ function buildWeekDays() {
 }
 
 export default function MedicationSchedulePage() {
-    const { medications } = useDataStore();
+    const { medications, addMedication } = useDataStore();
     const { user } = useAuthStore();
+    const { notify } = useNotificationStore();
     const [taken, setTaken] = useState<Record<string, boolean>>({});
+    const [showAddModal, setShowAddModal] = useState(false);
+    const [medForm, setMedForm] = useState({ name: '', dosage: '', instructions: '' });
 
     const today = new Date();
     const weekDays = buildWeekDays();
@@ -36,7 +40,31 @@ export default function MedicationSchedulePage() {
     const patientMeds = patient?.medications?.length ? patient.medications : medications;
 
     const toggleMed = (id: string) => {
-        setTaken(prev => ({ ...prev, [id]: !prev[id] }));
+        setTaken(prev => {
+            const newState = { ...prev, [id]: !prev[id] };
+            if (newState[id]) {
+                const med = patientMeds.find(m => m.id === id);
+                if (med) notify(`تم تسجيل تناول ${med.name}`, 'success');
+            }
+            return newState;
+        });
+    };
+
+    const handleAddMedication = () => {
+        if (!medForm.name.trim()) {
+            notify('يرجى إدخال اسم الدواء', 'error');
+            return;
+        }
+        const newMed: Medication = {
+            id: `MED-${Date.now()}`,
+            name: medForm.name.trim(),
+            dosage: medForm.dosage.trim(),
+            instructions: medForm.instructions.trim(),
+        };
+        addMedication(newMed);
+        notify(`تمت إضافة ${newMed.name} للجدول`, 'success');
+        setMedForm({ name: '', dosage: '', instructions: '' });
+        setShowAddModal(false);
     };
 
     const schedule = [
@@ -51,7 +79,10 @@ export default function MedicationSchedulePage() {
                     <h2 className="text-xl font-bold text-[#1C2B2A]">جدول الأدوية</h2>
                     <p className="text-xs text-[#7A9490]">{todayLabel}</p>
                 </div>
-                <button className="w-10 h-10 bg-[#2E7D6B] text-white rounded-xl flex items-center justify-center shadow-lg shadow-[#2E7D6B]/30">
+                <button
+                    onClick={() => setShowAddModal(true)}
+                    className="w-10 h-10 bg-[#2E7D6B] text-white rounded-xl flex items-center justify-center shadow-lg shadow-[#2E7D6B]/30"
+                >
                     <Plus size={20} />
                 </button>
             </div>
@@ -115,6 +146,34 @@ export default function MedicationSchedulePage() {
                     ))}
                 </div>
             )}
+
+            {/* Add Medication Modal */}
+            <Modal isOpen={showAddModal} onClose={() => { setShowAddModal(false); setMedForm({ name: '', dosage: '', instructions: '' }); }} title="إضافة دواء للجدول">
+                <div className="space-y-4">
+                    <Input
+                        label="اسم الدواء *"
+                        value={medForm.name}
+                        onChange={(e) => setMedForm(f => ({ ...f, name: e.target.value }))}
+                        placeholder="مثال: باراسيتامول"
+                    />
+                    <Input
+                        label="الجرعة"
+                        value={medForm.dosage}
+                        onChange={(e) => setMedForm(f => ({ ...f, dosage: e.target.value }))}
+                        placeholder="مثال: 500mg"
+                    />
+                    <Input
+                        label="تعليمات الاستخدام"
+                        value={medForm.instructions}
+                        onChange={(e) => setMedForm(f => ({ ...f, instructions: e.target.value }))}
+                        placeholder="مثال: حبة بعد الأكل"
+                    />
+                    <div className="flex gap-3 pt-2">
+                        <Button variant="outline" className="flex-1" onClick={() => { setShowAddModal(false); setMedForm({ name: '', dosage: '', instructions: '' }); }}>إلغاء</Button>
+                        <Button className="flex-1" onClick={handleAddMedication}>إضافة</Button>
+                    </div>
+                </div>
+            </Modal>
         </div>
     );
 }

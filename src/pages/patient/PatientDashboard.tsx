@@ -1,12 +1,15 @@
 import { Card } from '../../components/ui/Card';
 import { Calendar, Pill, Activity, ChevronLeft, CalendarPlus, ShoppingCart, FileText, Beaker } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useDataStore } from '../../store/dataStore';
 import { useAuthStore } from '../../store';
+import { useNotificationStore } from '../../store/notificationStore';
 
 export default function PatientDashboard() {
     const { user } = useAuthStore();
     const { appointments, medications } = useDataStore();
+    const { notify } = useNotificationStore();
+    const navigate = useNavigate();
 
     // Get the next confirmed/pending appointment for this patient
     const nextApp = appointments
@@ -23,7 +26,7 @@ export default function PatientDashboard() {
 
                 {/* Next Appointment Card */}
                 {nextApp ? (
-                    <Card className="p-4 border-l-4 border-l-[#3A7DBF] bg-gradient-to-l from-white to-[#EEF4FB]">
+                    <Card className="p-4 border-l-4 border-l-[#3A7DBF] bg-gradient-to-l from-white to-[#EEF4FB] cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/patient/appointments')}>
                         <div className="flex items-start gap-4">
                             <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-[#3A7DBF] shadow-sm flex-shrink-0">
                                 <Calendar size={20} />
@@ -58,7 +61,10 @@ export default function PatientDashboard() {
                                 <h4 className="font-bold text-[#1C2B2A]">{activeMed.name}</h4>
                                 <p className="text-sm text-[#4A6360]">{activeMed.instructions}</p>
                             </div>
-                            <button className="h-8 w-8 bg-[#D4820A] text-white rounded-full flex items-center justify-center shadow-md hover:bg-[#b56e08] transition-colors">
+                            <button
+                                onClick={() => notify(`تم تسجيل تناول ${activeMed.name}`, 'success')}
+                                className="h-8 w-8 bg-[#D4820A] text-white rounded-full flex items-center justify-center shadow-md hover:bg-[#b56e08] transition-colors"
+                            >
                                 ✓
                             </button>
                         </div>
@@ -73,7 +79,10 @@ export default function PatientDashboard() {
                         </div>
                         <div className="flex-1 text-sm text-[#4A6360] flex items-center justify-between">
                             <span>تحليل <strong>HbA1c</strong> منذ أسبوعين</span>
-                            <button className="text-[#2E7D6B] font-bold text-xs flex items-center gap-1">
+                            <button
+                                onClick={() => navigate('/patient/records')}
+                                className="text-[#2E7D6B] font-bold text-xs flex items-center gap-1"
+                            >
                                 عرض النتيجة <ChevronLeft size={14} />
                             </button>
                         </div>
@@ -86,7 +95,7 @@ export default function PatientDashboard() {
                 <h3 className="text-sm font-bold text-[#7A9490] px-1">الوصول السريع</h3>
                 <div className="grid grid-cols-4 gap-3">
                     {[
-                        { icon: CalendarPlus, label: 'احجز موعد', color: 'bg-[#EEF4FB] text-[#3A7DBF]', path: '/patient/appointments/book' },
+                        { icon: CalendarPlus, label: 'احجز موعد', color: 'bg-[#EEF4FB] text-[#3A7DBF]', path: '/patient/appointments' },
                         { icon: ShoppingCart, label: 'اطلب دواء', color: 'bg-[#EFF6F4] text-[#2E7D6B]', path: '/patient/pharmacy' },
                         { icon: FileText, label: 'سجل طبي', color: 'bg-[#EDE8F5] text-[#7B5EA7]', path: '/patient/records' },
                         { icon: Beaker, label: 'تحاليل', color: 'bg-[#FEF6E8] text-[#D4820A]', path: '/patient/records' },

@@ -2,11 +2,13 @@ import { Users, UserPlus, Activity, Database, TrendingUp, AlertCircle } from 'lu
 import { Card } from '../../components/ui';
 import { useDataStore } from '../../store/dataStore';
 import { useNotificationStore } from '../../store/notificationStore';
+import { useNavigate } from 'react-router-dom';
 import { type Medication } from '../../types';
 
 export default function AdminDashboard() {
     const { patients, doctors, medications, doctorApplications, approveDoctor } = useDataStore();
     const { notify } = useNotificationStore();
+    const navigate = useNavigate();
 
     const lowStockCount = medications.filter((m: Medication) => (m.stock || 0) < 20).length;
 
@@ -17,6 +19,18 @@ export default function AdminDashboard() {
         { label: 'إيرادات المنصة', value: '145k', desc: 'ريال', icon: TrendingUp, color: 'text-[#7B5EA7]', bg: 'bg-[#F3EFF9]', trend: '+8% مقارنة بالشهر الماضي' },
     ];
 
+    const handleExportReport = () => {
+        const report = `تقرير النظام\n${'='.repeat(40)}\n\nإجمالي المرضى: ${patients.length}\nالأطباء النشطين: ${doctors.length}\nالأدوية في المخزون: ${medications.length}\nأدوية بنقص مخزون: ${lowStockCount}\n\nتاريخ التقرير: ${new Date().toLocaleDateString('ar-SA')}`;
+        const blob = new Blob([report], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `system-report-${new Date().toISOString().split('T')[0]}.txt`;
+        a.click();
+        URL.revokeObjectURL(url);
+        notify('تم استخراج تقرير النظام بنجاح', 'success');
+    };
+
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
@@ -24,7 +38,10 @@ export default function AdminDashboard() {
                     <h2 className="text-2xl font-bold text-[#1C2B2A]">نظرة عامة على النظام</h2>
                     <p className="text-[#7A9490] mt-1">مرحباً بك في لوحة تحكم المشرف الرئيسي</p>
                 </div>
-                <button className="px-4 py-2 bg-[#7B5EA7] text-white font-bold text-sm rounded-xl shadow-md hover:bg-[#5A3E8A] transition-colors flex items-center gap-2">
+                <button
+                    onClick={handleExportReport}
+                    className="px-4 py-2 bg-[#7B5EA7] text-white font-bold text-sm rounded-xl shadow-md hover:bg-[#5A3E8A] transition-colors flex items-center gap-2"
+                >
                     <Database size={16} /> استخراج تقرير النظام
                 </button>
             </div>
@@ -60,7 +77,12 @@ export default function AdminDashboard() {
                         <h3 className="font-bold text-[#1C2B2A] text-lg flex items-center gap-2">
                             <UserPlus className="text-[#D4820A]" size={20} /> طلبات انضمام الأطباء
                         </h3>
-                        <button className="text-sm font-bold text-[#7B5EA7] hover:underline">عرض الكل ({12})</button>
+                        <button
+                            onClick={() => navigate('/admin/doctors')}
+                            className="text-sm font-bold text-[#7B5EA7] hover:underline"
+                        >
+                            عرض الكل ({doctorApplications.length + doctors.length})
+                        </button>
                     </div>
                     <div className="space-y-4">
                         {doctorApplications.map((doc, idx) => (
@@ -85,7 +107,12 @@ export default function AdminDashboard() {
                                     >
                                         قبول
                                     </button>
-                                    <button className="px-3 py-1.5 bg-[#FDEAE8] text-[#C0392B] text-xs font-bold rounded-lg hover:bg-[#C0392B] hover:text-white transition-colors">مراجعة</button>
+                                    <button
+                                        onClick={() => notify(`جاري مراجعة طلب ${doc.name}...`, 'info')}
+                                        className="px-3 py-1.5 bg-[#FDEAE8] text-[#C0392B] text-xs font-bold rounded-lg hover:bg-[#C0392B] hover:text-white transition-colors"
+                                    >
+                                        مراجعة
+                                    </button>
                                 </div>
                             </div>
                         ))}
@@ -101,6 +128,12 @@ export default function AdminDashboard() {
                         <h3 className="font-bold text-[#1C2B2A] text-lg flex items-center gap-2">
                             <AlertCircle className="text-[#C0392B]" size={20} /> تنبيهات النظام الطبية
                         </h3>
+                        <button
+                            onClick={() => navigate('/admin/pharmacy')}
+                            className="text-sm font-bold text-[#7B5EA7] hover:underline"
+                        >
+                            إدارة المخزون
+                        </button>
                     </div>
                     <div className="space-y-4">
                         {medications.filter((m: Medication) => (m.stock || 0) < 10).map((med, idx) => (
@@ -129,6 +162,9 @@ export default function AdminDashboard() {
                                 </div>
                             </div>
                         ))}
+                        {medications.filter((m: Medication) => (m.stock || 0) < 20).length === 0 && (
+                            <p className="text-center text-sm text-[#7A9490] py-4">لا توجد تنبيهات حالياً - المخزون جيد</p>
+                        )}
                     </div>
                 </Card>
             </div>
