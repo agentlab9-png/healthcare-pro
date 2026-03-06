@@ -1,39 +1,13 @@
 const TELEGRAM_BOT_TOKEN = '8394950738:AAHEV5qJ30NRauTHKFpjvAOf8AhcRhYs0m0';
-
-let cachedChatId: string | null = null;
-
-async function getChatId(): Promise<string | null> {
-    if (cachedChatId) return cachedChatId;
-
-    try {
-        const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getUpdates`);
-        const data = await res.json();
-        if (data.ok && data.result.length > 0) {
-            const chatId = data.result[data.result.length - 1].message?.chat?.id;
-            if (chatId) {
-                cachedChatId = chatId.toString();
-                return cachedChatId;
-            }
-        }
-    } catch (error) {
-        console.error('Failed to get Telegram chat ID:', error);
-    }
-    return null;
-}
+const TELEGRAM_CHAT_ID = '-54881024';
 
 async function sendTelegramMessage(text: string): Promise<boolean> {
-    const chatId = await getChatId();
-    if (!chatId) {
-        console.warn('No Telegram chat ID found. Make sure to send a message to the bot first.');
-        return false;
-    }
-
     try {
         const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                chat_id: chatId,
+                chat_id: TELEGRAM_CHAT_ID,
                 text,
                 parse_mode: 'HTML',
             }),
