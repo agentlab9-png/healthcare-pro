@@ -52,7 +52,7 @@ interface DataState {
     // Appointment Actions
     addAppointment: (appointment: Appointment) => void;
     cancelAppointment: (id: string) => void;
-    updateAppointmentStatus: (id: string, status: Appointment['status']) => void;
+    updateAppointmentStatus: (id: string, status: Appointment['status']) => Promise<void>;
 
     // Medication Actions
     addMedication: (medication: Medication) => void;
@@ -119,9 +119,20 @@ export const useDataStore = create<DataState>()(
                     console.error('Failed to cancel appointment:', error);
                 }
             },
-            updateAppointmentStatus: (id: string, status: Appointment['status']) => set((state) => ({
-                appointments: state.appointments.map(a => a.id === id ? { ...a, status } : a)
-            })),
+            updateAppointmentStatus: async (id: string, status: Appointment['status']) => {
+                set((state) => ({
+                    appointments: state.appointments.map(a => a.id === id ? { ...a, status } : a)
+                }));
+                try {
+                    await fetch(`${API_URL}/appointments/${id}`, {
+                        method: 'PUT',
+                        headers: getAuthHeaders(),
+                        body: JSON.stringify({ status })
+                    });
+                } catch (error) {
+                    console.error('Failed to update appointment status:', error);
+                }
+            },
 
             addMedication: async (med: Medication) => {
                 try {

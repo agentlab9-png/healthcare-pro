@@ -14,7 +14,7 @@ export default function DoctorAppointments() {
     const [searchQuery, setSearchQuery] = useState('');
     const navigate = useNavigate();
 
-    const myAppointments = appointments.filter(a => a.doctorId === user?.id && a.status !== 'ملغي');
+    const myAppointments = appointments.filter(a => a.doctorId === (user?.doctorId || user?.id) && a.status !== 'ملغي');
     const todayStr = new Date().toISOString().split('T')[0];
     const tabFiltered = activeTab === 'today'
         ? myAppointments.filter(a => a.date === todayStr)

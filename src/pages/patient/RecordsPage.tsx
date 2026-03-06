@@ -9,7 +9,7 @@ export default function RecordsPage() {
     const { user } = useAuthStore();
     const [activeTab, setActiveTab] = useState<'reports' | 'labs'>('reports');
 
-    const myRecords = records.filter(r => r.patientId === user?.id);
+    const myRecords = records.filter(r => r.patientId === (user?.patientId || user?.id));
     const reports = myRecords.filter(r => r.type === 'report');
     const labs = myRecords.filter(r => r.type === 'lab');
 

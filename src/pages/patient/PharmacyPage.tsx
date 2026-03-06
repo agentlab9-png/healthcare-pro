@@ -3,7 +3,9 @@ import { Search, Filter, ShoppingCart, Upload, Info, X, Trash2 } from 'lucide-re
 import { Card, Input, Button, Modal } from '../../components/ui';
 import { useDataStore } from '../../store/dataStore';
 import { useNotificationStore } from '../../store/notificationStore';
+import { useAuthStore } from '../../store/authStore';
 import { type Medication } from '../../types';
+import { API_URL } from '../../config';
 
 interface CartItem { med: Medication; count: number; }
 
@@ -12,6 +14,7 @@ const CATEGORIES = ['الكل', 'مسكنات', 'مضادات', 'فيتامين�
 export default function PharmacyPage() {
     const { medications } = useDataStore();
     const { notify } = useNotificationStore();
+    const { user } = useAuthStore();
     const [searchQuery, setSearchQuery] = useState('');
     const [activeCategory, setActiveCategory] = useState('الكل');
     const [cart, setCart] = useState<CartItem[]>([]);
@@ -42,7 +45,19 @@ export default function PharmacyPage() {
         setCart(prev => prev.filter(i => i.med.id !== medId));
     };
 
-    const handleOrder = () => {
+    const handleOrder = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            await fetch(`${API_URL}/pharmacy/order`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({
+                    patientName: user?.name,
+                    total: cartTotal,
+                    items: cart.map(i => ({ name: i.med.name, count: i.count, total: (i.med.price || 0) * i.count }))
+                })
+            });
+        } catch { /* silent */ }
         notify('تم إرسال طلبك بنجاح! سيتم التواصل معك قريباً', 'success');
         setCart([]);
         setShowCart(false);

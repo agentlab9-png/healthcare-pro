@@ -41,7 +41,7 @@ function UpcomingAppointments() {
     const { appointments, cancelAppointment } = useDataStore();
     const { notify } = useNotificationStore();
 
-    const myAppointments = appointments.filter(a => a.patientId === user?.id && a.status !== 'ملغي');
+    const myAppointments = appointments.filter(a => a.patientId === (user?.patientId || user?.id) && a.status !== 'ملغي');
 
     return (
         <div className="space-y-4 mt-6">
@@ -152,7 +152,7 @@ function BookAppointment({ onBooked }: { onBooked: () => void }) {
 
         const newApp: Appointment = {
             id: `APP-${Date.now()}`,
-            patientId: user?.id || '',
+            patientId: user?.patientId || user?.id || '',
             doctorId: selectedDoctor.id,
             doctorName: selectedDoctor.name,
             patientName: user?.name,

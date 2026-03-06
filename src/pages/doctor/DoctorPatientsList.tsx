@@ -15,7 +15,7 @@ export default function DoctorPatientsList() {
     // Get unique patient IDs that have appointments with this doctor
     const myPatientIds = [...new Set(
         appointments
-            .filter(a => a.doctorId === user?.id)
+            .filter(a => a.doctorId === (user?.doctorId || user?.id))
             .map(a => a.patientId)
     )];
 
@@ -30,7 +30,7 @@ export default function DoctorPatientsList() {
 
     const getLastAppointment = (patientId: string) => {
         return appointments
-            .filter(a => a.patientId === patientId && a.doctorId === user?.id)
+            .filter(a => a.patientId === patientId && a.doctorId === (user?.doctorId || user?.id))
             .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
     };
 

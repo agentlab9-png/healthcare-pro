@@ -14,6 +14,22 @@ app.use(express.json());
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret';
 
+// --- Telegram Notification ---
+async function sendTelegram(message) {
+    const token = process.env.TELEGRAM_BOT_TOKEN;
+    const chatId = process.env.TELEGRAM_CHAT_ID;
+    if (!token || !chatId) return;
+    try {
+        await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id: chatId, text: message, parse_mode: 'HTML' })
+        });
+    } catch (err) {
+        console.error('Telegram notification failed:', err.message);
+    }
+}
+
 // --- Middleware ---
 function authenticateToken(req, res, next) {
     const authHeader = req.headers['authorization'];
@@ -203,9 +219,23 @@ app.post('/api/appointments', authenticateToken, async (req, res) => {
     const { patientId, doctorId, date, time, type, reason, notes } = req.body;
     try {
         const app = await prisma.appointment.create({
-            data: { patientId, doctorId, date, time, type, reason, notes }
+            data: { patientId, doctorId, date, time, type, reason, notes },
+            include: { doctor: { include: { user: true } }, patient: { include: { user: true } } }
         });
-        res.json(app);
+
+        // Send Telegram notification
+        const patientName = app.patient?.user?.name || 'مريض';
+        const doctorName = app.doctor?.user?.name || 'طبيب';
+        await sendTelegram(
+            `🏥 <b>حجز موعد جديد</b>\n` +
+            `👤 المريض: ${patientName}\n` +
+            `👨‍⚕️ الطبيب: ${doctorName}\n` +
+            `📅 التاريخ: ${date} — ${time}\n` +
+            `🔖 النوع: ${type}` +
+            (reason ? `\n📝 السبب: ${reason}` : '')
+        );
+
+        res.json({ ...app, doctorName, patientName });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -264,6 +294,25 @@ app.post('/api/records', authenticateToken, async (req, res) => {
             data: { patientId, doctorId, date, title, type, content, status, color }
         });
         res.json(record);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// --- Pharmacy Orders ---
+app.post('/api/pharmacy/order', authenticateToken, async (req, res) => {
+    const { items, total, patientName } = req.body;
+    try {
+        const itemsList = items.map(i => `• ${i.name} × ${i.count} = ${i.total} ر.س`).join('\n');
+        await sendTelegram(
+            `💊 <b>طلب صيدلية جديد</b>\n` +
+            `👤 المريض: ${patientName || 'غير محدد'}\n` +
+            `───────────────\n` +
+            `${itemsList}\n` +
+            `───────────────\n` +
+            `💰 الإجمالي: ${total} ر.س`
+        );
+        res.json({ success: true });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

@@ -10,7 +10,7 @@ export default function PatientDashboard() {
 
     // Get the next confirmed/pending appointment for this patient
     const nextApp = appointments
-        .filter(a => a.patientId === user?.id && (a.status === 'مؤكد' || a.status === 'في الانتظار'))
+        .filter(a => a.patientId === (user?.patientId || user?.id) && (a.status === 'مؤكد' || a.status === 'في الانتظار'))
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0];
 
     // Get medications for this patient

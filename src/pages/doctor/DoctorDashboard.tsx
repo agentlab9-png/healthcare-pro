@@ -8,7 +8,7 @@ export default function DoctorDashboard() {
     const { appointments } = useDataStore();
 
     // Filter appointments for the current doctor
-    const myAppointments = appointments.filter(a => a.doctorId === user?.id && a.status !== 'ملغي');
+    const myAppointments = appointments.filter(a => a.doctorId === (user?.doctorId || user?.id) && a.status !== 'ملغي');
     const todayStr = new Date().toISOString().split('T')[0];
     const todayApps = myAppointments.filter(a => a.date === todayStr);
 
