@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npx eslint src --max-warnings=0)"
+      "Bash(npx eslint src --max-warnings=0)",
+      "Bash(RAILWAY_API_TOKEN=55bcd0d6-b171-4ea6-8493-891963134315 railway up --detach)",
+      "Bash(curl -s --max-time 15 https://healthcare-api-production-d4af.up.railway.app/health)"
     ]
   }
 }
